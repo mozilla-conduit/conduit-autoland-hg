@@ -1,0 +1,5 @@
+Mercurial `hgweb` server.
+
+Provides unauthenticated http read/write access to a repository located in
+/repos/test-repo.  It is expected this path will be a Docker volume mount
+for persistence.
