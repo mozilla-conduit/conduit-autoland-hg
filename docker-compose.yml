@@ -1,0 +1,20 @@
+version: '2'
+services:
+
+    hg-init:
+        build: .
+        command: init
+        volumes:
+            - autoland-hg:/repos
+
+    hg:
+        build: .
+        depends_on:
+            - hg-init
+        ports:
+            - "8000:8000"
+        volumes:
+            - autoland-hg:/repos
+
+volumes:
+    autoland-hg:

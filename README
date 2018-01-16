@@ -1,5 +1,8 @@
 Mercurial `hgweb` server.
 
 Provides unauthenticated http read/write access to a repository located in
-/repos/test-repo.  It is expected this path will be a Docker volume mount
-for persistence.
+/repos.  It is expected this path will be a Docker volume mount for persistence.
+
+eg:
+    docker run --volume autoland-hg:/repos hg init
+    docker run --volume autoland-hg:/repos hg start
