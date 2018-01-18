@@ -4,12 +4,12 @@
 
 FROM alpine:3.6
 
-ENV HG_MAJOR_VERSION=4.4
+ENV HG_VERSION=4.4
 
 RUN apk update; \
     apk add --no-cache python2 ca-certificates; \
     apk add --no-cache --virtual build-dependencies build-base python-dev py-pip; \
-    pip install --no-cache "mercurial>=$HG_MAJOR_VERSION,<$HG_MAJOR_VERSION.99"; \
+    pip install --no-cache "mercurial>=$HG_VERSION,<$HG_VERSION.99"; \
     mkdir -p /etc/mercurial
 
 COPY hgrc /etc/mercurial/hgrc
