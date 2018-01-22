@@ -12,6 +12,7 @@ case "${1:-start}" in
         cd /repos/$REPO_NAME
         echo $REPO_NAME > README
         hg commit -A -m 'initial commit'
+        hg phase --public -r .
         ;;
     "start")
         echo Starting hg web server on port ${PORT:-8000}
