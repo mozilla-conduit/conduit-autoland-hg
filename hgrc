@@ -1,12 +1,12 @@
 [web]
 allow_push = *
-push_ssl = False
+push_ssl = false
 
 [format]
 generaldelta = true
 
 [phases]
-publish = False
+publish = true
 
 [server]
 validate = true
