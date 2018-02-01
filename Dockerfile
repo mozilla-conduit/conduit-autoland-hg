@@ -4,6 +4,11 @@
 
 FROM alpine:3.6
 
+RUN addgroup -g 10001 app; \
+    adduser -D -u 10001 -G app -g app app; \
+    mkdir /app; \
+    chown app:app /app
+
 ENV HG_VERSION=4.4
 
 RUN apk update; \
@@ -16,9 +21,7 @@ COPY hgrc /etc/mercurial/hgrc
 COPY requirements.txt /requirements.txt
 COPY entrypoint.sh /entrypoint.sh
 
-RUN addgroup -g 10001 app; \
-    adduser -D -u 10001 -G app -g app app; \
-    mkdir /repos; \
+RUN mkdir /repos; \
     chown app:app /repos; \
     pip install -r /requirements.txt; \
     apk del build-dependencies
