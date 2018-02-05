@@ -6,3 +6,4 @@ Provides unauthenticated http read/write access to a repository located in
 eg:
     docker run --volume autoland-hg:/repos hg init
     docker run --volume autoland-hg:/repos hg start
+
