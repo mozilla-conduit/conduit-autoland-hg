@@ -20,6 +20,7 @@ RUN apk update; \
 COPY hgrc /etc/mercurial/hgrc
 COPY requirements.txt /requirements.txt
 COPY entrypoint.sh /entrypoint.sh
+COPY version.json /app/version.json
 
 RUN mkdir /repos; \
     chown app:app /repos; \
