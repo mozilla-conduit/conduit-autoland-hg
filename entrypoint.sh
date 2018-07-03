@@ -11,6 +11,15 @@ case "${1:-start}" in
         hg init /repos/$REPO_NAME
         cd /repos/$REPO_NAME
         echo $REPO_NAME > README
+        if [ "$ARCCONFIG" == "y" ]; then
+            cat <<EOF > .arcconfig
+{
+    "phabricator.uri" : "${PHABRICATOR_URI:="http://phabricator.test"}",
+    "repository.callsign": "${REPO_CALLSIGN:="TESTREPO"}",
+    "history.immutable": false
+}
+EOF
+        fi
         hg commit -A -m 'initial commit'
         hg phase --public -r .
         ;;
