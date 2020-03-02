@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+"""
+This command takes one positional argument, `command`, which specifies whether
+to initialize test repos locally, or to start an hg serve comand serving the
+test repos.
+"""
+
+import argparse
+import json
+import subprocess
+import os
+from pathlib import Path
+
+
+BASE_REPO_DIR = Path("/repos")
+
+HG_SERVE_PORT = os.environ.get("PORT", "8000")
+PHABRICATOR_URI = os.environ.get("PHABRICATOR_URI", "http://phabricator.test")
+
+DO_ARCCONFIG = os.environ.get("ARCCONFIG", "").lower() in ("y", "1", "true")
+BASE_ARC_CONFIG = {
+    "phabricator.uri": PHABRICATOR_URI,
+    "history.immutable": False,
+}
+
+# Add or remove entires from this list to create more or less test repos.
+REPOS = [
+    # At the time of writing, test-repo is used in the "dev" instance for testing.
+    "test-repo",
+    # The repos below are used by the local conduit suite (phabricator and lando-api).
+    # If these values are changed here, the local phabricator SQL dump and the hardcoded
+    # repo values in `landoapi.repos` will need to be updated.
+    "first-repo",
+    "second-repo",
+    "third-repo",
+]
+
+# Create a config template for the `hg serve` command.
+WEBDIR_CONF = f"""[paths]
+/ = {BASE_REPO_DIR}/*"""
+WEBDIR_CONF_PATH = BASE_REPO_DIR / "webdir.conf"
+
+
+def init():
+    """Perform initialization on the local dev environment.
+
+    Calls `create_repo` on a pre-defined list of repos, and sets up HG's web config.
+    """
+    for repo in REPOS:
+        print(f"Creating {repo}...")
+        create_repo(repo, DO_ARCCONFIG)
+
+    with WEBDIR_CONF_PATH.open("w") as f:
+        print(f"Copying webdir conf to {WEBDIR_CONF_PATH}...")
+        f.write(WEBDIR_CONF)
+
+
+def start():
+    """Run a local HG web server instance.
+    """
+    subprocess.call(
+        [
+            "hg",
+            "serve",
+            "--port",
+            HG_SERVE_PORT,
+            "--accesslog",
+            "/dev/stdout",
+            "--errorlog",
+            "/dev/stderr",
+            "--webdir-conf",
+            WEBDIR_CONF_PATH,
+        ],
+        cwd=BASE_REPO_DIR,
+    )
+
+
+def create_parser():
+    parser = argparse.ArgumentParser()
+    commands = parser.add_subparsers(dest="command", title="commands")
+    command_parsers = (
+        (init, commands.add_parser("init", help="create test repos")),
+        (start, commands.add_parser("start", help="run an hg serve command locally")),
+    )
+
+    for func, sub_parser in command_parsers:
+        sub_parser.set_defaults(func=func)
+
+    return parser
+
+
+def create_repo(name, do_arcconfig=False):
+    """Initialize a repo in the base directory with the provided name.
+
+    Args:
+        name (str): the name of the repo to initialize
+    """
+    if not BASE_REPO_DIR.is_dir():
+        BASE_REPO_DIR.mkdir()
+
+    subprocess.call(["hg", "init", BASE_REPO_DIR / name])
+
+    with (BASE_REPO_DIR / name / "README").open("w") as f:
+        f.write(name)
+
+    if do_arcconfig:
+        with (BASE_REPO_DIR / name / ".arcconfig").open("w") as f:
+            config = BASE_ARC_CONFIG.copy()
+            config["repository.callsign"] = name.upper().replace("-", "")
+            json.dump(config, f)
+
+    subprocess.call(
+        ["hg", "commit", "-A", "-m", "initial commit"], cwd=BASE_REPO_DIR / name,
+    )
+
+    subprocess.call(["hg", "phase", "--public", "-r", "."], cwd=BASE_REPO_DIR / name)
+
+
+if __name__ == "__main__":
+    parser = create_parser()
+    args = parser.parse_args()
+    if hasattr(args, "func"):
+        args.func()
+    else:
+        parser.print_help()
