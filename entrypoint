@@ -13,13 +13,13 @@ test repos.
 import argparse
 import json
 import subprocess
+import sys
 import os
 from pathlib import Path
 
 
 BASE_REPO_DIR = Path("/repos")
 
-HG_SERVE_PORT = os.environ.get("PORT", "8000")
 PHABRICATOR_URI = os.environ.get("PHABRICATOR_URI", "http://phabricator.test")
 
 DO_ARCCONFIG = os.environ.get("ARCCONFIG", "").lower() in ("y", "1", "true")
@@ -46,10 +46,14 @@ WEBDIR_CONF = f"""[paths]
 WEBDIR_CONF_PATH = BASE_REPO_DIR / "webdir.conf"
 
 
-def init():
+def init(args):
     """Perform initialization on the local dev environment.
 
     Calls `create_repo` on a pre-defined list of repos, and sets up HG's web config.
+
+    Args:
+        args (argparse.Namespace): Additional arguments passed to `init` from the
+            command line.
     """
     for repo in REPOS:
         print(f"Creating {repo}...")
@@ -58,17 +62,24 @@ def init():
     with WEBDIR_CONF_PATH.open("w") as f:
         print(f"Copying webdir conf to {WEBDIR_CONF_PATH}...")
         f.write(WEBDIR_CONF)
+    print("Done.")
 
 
-def start():
-    """Run a local HG web server instance.
+def start(args):
+    """Run a local mercurial web server instance.
+
+    Args:
+        args (argparse.Namespace): Additional arguments passed to `start` from the
+            command line: hg_serve_port.
     """
-    subprocess.call(
+    hg_serve_port = args.hg_serve_port
+
+    subprocess.run(
         [
             "hg",
             "serve",
             "--port",
-            HG_SERVE_PORT,
+            hg_serve_port,
             "--accesslog",
             "/dev/stdout",
             "--errorlog",
@@ -80,18 +91,43 @@ def start():
     )
 
 
-def create_parser():
-    parser = argparse.ArgumentParser()
-    commands = parser.add_subparsers(dest="command", title="commands")
-    command_parsers = (
-        (init, commands.add_parser("init", help="create test repos")),
-        (start, commands.add_parser("start", help="run an hg serve command locally")),
-    )
+def start_sshd(args):
+    """Start the SSH daemon on the specified port.
 
-    for func, sub_parser in command_parsers:
-        sub_parser.set_defaults(func=func)
+    Args:
+        args (argparse.Namespace): Additional arguments passed to `start_ssh` from the
+            command line: sshd_port.
+    """
+    sshd_port = args.sshd_port
 
-    return parser
+    # Start sshd non-daemon mode while printing errors to stderr
+    subprocess.run(["/usr/sbin/sshd", "-De", "-p", sshd_port])
+
+
+def authorize_ssh(args):
+    """Copy an authorized public key from an environment variable to the filesystem.
+
+    Args:
+        args (argparse.Namespace): Additional arguments passed to `authorizer_ssh` from
+        the command line.
+    """
+    ENV_KEY = "SSH_PUBLIC_KEY"
+
+    ssh_path = Path("~/.ssh").expanduser()
+    authorized_keys_path = ssh_path / "authorized_keys"
+    ssh_public_key = args.public_key or os.environ.get(ENV_KEY)
+
+    if not ssh_public_key:
+        sys.exit(
+            f"Public key must be passed as an argument or be defined in {ENV_KEY}."
+        )
+
+    print(f"Removing {authorized_keys_path} if it exists...")
+    authorized_keys_path.unlink(missing_ok=True)
+    with authorized_keys_path.open("w") as f:
+        print(f"Populating {authorized_keys_path} with key...")
+        f.write(ssh_public_key)
+    print("Done.")
 
 
 def create_repo(name, do_arcconfig=False):
@@ -121,10 +157,46 @@ def create_repo(name, do_arcconfig=False):
     subprocess.call(["hg", "phase", "--public", "-r", "."], cwd=BASE_REPO_DIR / name)
 
 
+def create_parser():
+    parser = argparse.ArgumentParser()
+    commands = parser.add_subparsers(dest="command", title="commands")
+    command_parsers = {
+        init: commands.add_parser("init", help="create test repos"),
+        start: commands.add_parser("start", help="run an hg serve command locally"),
+        start_sshd: commands.add_parser("start-sshd", help="start sshd"),
+        authorize_ssh: commands.add_parser(
+            "authorize-ssh", help="authorize ssh client via an env var"
+        ),
+    }
+
+    for func, sub_parser in command_parsers.items():
+        sub_parser.set_defaults(func=func)
+
+    command_parsers[start].add_argument(
+        "--hg-serve-port",
+        "-p",
+        default=os.environ.get("HG_PORT", "8000"),
+        help="port to start the hg web server on",
+    )
+
+    command_parsers[start_sshd].add_argument(
+        "--sshd-port",
+        "-q",
+        default=os.environ.get("SSHD_PORT", "22"),
+        help="port to start ssh daemon on",
+    )
+
+    command_parsers[authorize_ssh].add_argument(
+        "--public-key", "-k", help="public key to authorize",
+    )
+
+    return parser
+
+
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
     if hasattr(args, "func"):
-        args.func()
+        args.func(args)
     else:
         parser.print_help()

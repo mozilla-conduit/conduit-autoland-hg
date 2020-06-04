@@ -14,7 +14,7 @@ RUN adduser --disabled-password --uid $UID --gecos "" $USER; \
 ENV HG_VERSION=5.3.2
 
 RUN apt-get update; \
-    apt-get install -y build-essential; \
+    apt-get install -y build-essential openssh-server; \
     pip install --no-cache "mercurial==$HG_VERSION"; \
     mkdir -p /etc/mercurial
 
@@ -28,6 +28,11 @@ RUN mkdir /repos; \
     pip install -r /requirements.txt; \
     apt-get autoremove -y build-essential;
 
+RUN mkdir /home/$USER/.ssh;\
+    chown $USER:$USER /home/$USER/.ssh
+RUN mkdir /run/sshd
+
+VOLUME /home/$USER/.ssh
 VOLUME /repos
 
 USER $USER

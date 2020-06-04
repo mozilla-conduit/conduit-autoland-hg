@@ -3,18 +3,31 @@ services:
 
     hg-init:
         build: .
-        command: init
+        command: ["init"]
         volumes:
             - autoland-hg:/repos
+
+    hg-ssh:
+        build: .
+        depends_on:
+            - hg-init
+        user: root
+        volumes:
+            - ssh:/home/app/.ssh
+            - autoland-hg:/repos
+        command: ["start-sshd"]
 
     hg:
         build: .
         depends_on:
-            - hg-init
+            - hg-ssh
         ports:
             - "8000:8000"
         volumes:
             - autoland-hg:/repos
+            - ssh:/home/app/.ssh
+        command: ["start"]
 
 volumes:
     autoland-hg:
+    ssh:
