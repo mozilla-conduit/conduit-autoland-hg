@@ -175,7 +175,7 @@ def create_parser():
     command_parsers[start].add_argument(
         "--hg-serve-port",
         "-p",
-        default=os.environ.get("HG_PORT", "8000"),
+        default=os.environ.get("HG_SERVE_PORT", "8000"),
         help="port to start the hg web server on",
     )
 
