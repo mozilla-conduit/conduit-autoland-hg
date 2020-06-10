@@ -30,7 +30,9 @@ RUN mkdir /repos; \
 
 RUN mkdir /home/$USER/.ssh;\
     chown $USER:$USER /home/$USER/.ssh
-RUN mkdir /run/sshd
+RUN chown $USER:$USER /etc/ssh/ssh_host_rsa_key; \
+    chown $USER:$USER /etc/ssh/ssh_host_ecdsa_key; \
+    chown $USER:$USER /etc/ssh/ssh_host_ed25519_key;
 
 VOLUME /home/$USER/.ssh
 VOLUME /repos
