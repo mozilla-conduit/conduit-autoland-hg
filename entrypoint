@@ -12,17 +12,19 @@ test repos.
 
 import argparse
 import json
+import logging
 import subprocess
 import sys
 import os
 from pathlib import Path
 
 
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+
 BASE_REPO_DIR = Path("/repos")
-
 PHABRICATOR_URI = os.environ.get("PHABRICATOR_URI", "http://phabricator.test")
-
 DO_ARCCONFIG = os.environ.get("ARCCONFIG", "").lower() in ("y", "1", "true")
+
 BASE_ARC_CONFIG = {
     "phabricator.uri": PHABRICATOR_URI,
     "history.immutable": False,
@@ -56,30 +58,39 @@ def init(args):
             command line.
     """
     for repo in REPOS:
-        print(f"Creating {repo}...")
+        logging.info(f"Creating {repo}...")
         create_repo(repo, DO_ARCCONFIG)
 
     with WEBDIR_CONF_PATH.open("w") as f:
-        print(f"Copying webdir conf to {WEBDIR_CONF_PATH}...")
+        logging.info(f"Copying webdir conf to {WEBDIR_CONF_PATH}...")
         f.write(WEBDIR_CONF)
-    print("Done.")
+    logging.info("Done.")
 
 
 def start(args):
-    """Run a local mercurial web server instance.
+    """Run a local mercurial web server instance with sshd in the background.
 
     Args:
         args (argparse.Namespace): Additional arguments passed to `start` from the
-            command line: hg_serve_port.
+            command line: hg_serve_port, sshd_port.
     """
-    hg_serve_port = args.hg_serve_port
+    if not args.no_init:
+        init(args)
 
+    if not args.no_ssh_auth:
+        authorize_ssh(args)
+
+    if not args.no_sshd:
+        logging.info(f"Starting sshd on port {args.sshd_port}...")
+        subprocess.run(["/usr/sbin/sshd", "-e", "-p", args.sshd_port])
+
+    logging.info(f"Starting hg serve on port {args.hg_serve_port}...")
     subprocess.run(
         [
             "hg",
             "serve",
             "--port",
-            hg_serve_port,
+            args.hg_serve_port,
             "--accesslog",
             "/dev/stdout",
             "--errorlog",
@@ -89,19 +100,6 @@ def start(args):
         ],
         cwd=BASE_REPO_DIR,
     )
-
-
-def start_sshd(args):
-    """Start the SSH daemon on the specified port.
-
-    Args:
-        args (argparse.Namespace): Additional arguments passed to `start_ssh` from the
-            command line: sshd_port.
-    """
-    sshd_port = args.sshd_port
-
-    # Start sshd non-daemon mode while printing errors to stderr
-    subprocess.run(["/usr/sbin/sshd", "-De", "-p", sshd_port])
 
 
 def authorize_ssh(args):
@@ -115,19 +113,21 @@ def authorize_ssh(args):
 
     ssh_path = Path("~/.ssh").expanduser()
     authorized_keys_path = ssh_path / "authorized_keys"
-    ssh_public_key = args.public_key or os.environ.get(ENV_KEY)
+    ssh_public_key = getattr(args, "public_key", os.environ.get(ENV_KEY))
 
     if not ssh_public_key:
-        sys.exit(
-            f"Public key must be passed as an argument or be defined in {ENV_KEY}."
+        logging.warning(
+            "Public ssh key not passed as an argument or found in envioronment "
+            f"({ENV_KEY})."
         )
+        return
 
-    print(f"Removing {authorized_keys_path} if it exists...")
+    logging.info(f"Removing {authorized_keys_path} if it exists...")
     authorized_keys_path.unlink(missing_ok=True)
     with authorized_keys_path.open("w") as f:
-        print(f"Populating {authorized_keys_path} with key...")
+        logging.info(f"Populating {authorized_keys_path} with key...")
         f.write(ssh_public_key)
-    print("Done.")
+    logging.info("Done.")
 
 
 def create_repo(name, do_arcconfig=False):
@@ -163,7 +163,6 @@ def create_parser():
     command_parsers = {
         init: commands.add_parser("init", help="create test repos"),
         start: commands.add_parser("start", help="run an hg serve command locally"),
-        start_sshd: commands.add_parser("start-sshd", help="start sshd"),
         authorize_ssh: commands.add_parser(
             "authorize-ssh", help="authorize ssh client via an env var"
         ),
@@ -179,11 +178,26 @@ def create_parser():
         help="port to start the hg web server on",
     )
 
-    command_parsers[start_sshd].add_argument(
+    command_parsers[start].add_argument(
         "--sshd-port",
         "-q",
-        default=os.environ.get("SSHD_PORT", "22"),
+        default=os.environ.get("SSHD_PORT", "8022"),
         help="port to start ssh daemon on",
+    )
+
+    command_parsers[start].add_argument(
+        "--no-ssh-auth",
+        "-r",
+        action="store_true",
+        help="do not attempt to authorize ssh public key from the environment",
+    )
+
+    command_parsers[start].add_argument(
+        "--no-sshd", "-s", action="store_true", help="do not start sshd ",
+    )
+
+    command_parsers[start].add_argument(
+        "--no-init", "-t", action="store_true", help="do not initialize repos",
     )
 
     command_parsers[authorize_ssh].add_argument(
