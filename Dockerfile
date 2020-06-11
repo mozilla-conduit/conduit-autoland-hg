@@ -28,8 +28,10 @@ RUN mkdir /repos; \
     pip install -r /requirements.txt; \
     apt-get autoremove -y build-essential;
 
-RUN mkdir /home/$USER/.ssh;\
-    chown $USER:$USER /home/$USER/.ssh
+RUN mkdir /home/$USER/.ssh; \
+    chown $USER:$USER /home/$USER/.ssh; \
+    chmod 700 /home/$USER/.ssh
+
 RUN chown $USER:$USER /etc/ssh/ssh_host_rsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ecdsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ed25519_key;
