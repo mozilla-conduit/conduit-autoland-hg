@@ -1,2 +1,2 @@
 ipaddress==1.0.16
-Pygments==2.1.1
+Pygments==2.7.4
