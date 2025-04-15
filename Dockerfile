@@ -38,6 +38,8 @@ RUN chown $USER:$USER /etc/ssh/ssh_host_rsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ecdsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ed25519_key;
 
+RUN sed -i 's/^AcceptEnv.*/& AUTOLAND_REQUEST_USER/' /etc/ssh/sshd_config
+
 VOLUME /home/$USER/.ssh
 VOLUME /repos
 
