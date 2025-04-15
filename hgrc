@@ -13,3 +13,6 @@ publish = true
 
 [server]
 validate = true
+
+[extensions]
+pushlog = /version-control-tools/hgext/pushlog

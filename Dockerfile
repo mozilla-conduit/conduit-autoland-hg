@@ -18,6 +18,8 @@ RUN apt-get update; \
     pip install --no-cache "mercurial==$HG_VERSION"; \
     mkdir -p /etc/mercurial
 
+RUN hg clone https://hg.mozilla.org/hgcustom/version-control-tools/ /version-control-tools
+
 COPY hgrc /etc/mercurial/hgrc
 COPY requirements.txt /requirements.txt
 COPY entrypoint /entrypoint
