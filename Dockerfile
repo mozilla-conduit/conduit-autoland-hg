@@ -18,6 +18,8 @@ RUN apt-get update; \
     pip install --no-cache "mercurial==$HG_VERSION"; \
     mkdir -p /etc/mercurial
 
+RUN hg clone https://hg.mozilla.org/hgcustom/version-control-tools/ /version-control-tools
+
 COPY hgrc /etc/mercurial/hgrc
 COPY requirements.txt /requirements.txt
 COPY entrypoint /entrypoint
@@ -35,6 +37,8 @@ RUN mkdir /home/$USER/.ssh; \
 RUN chown $USER:$USER /etc/ssh/ssh_host_rsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ecdsa_key; \
     chown $USER:$USER /etc/ssh/ssh_host_ed25519_key;
+
+RUN sed -i 's/^AcceptEnv.*/& AUTOLAND_REQUEST_USER/' /etc/ssh/sshd_config
 
 VOLUME /home/$USER/.ssh
 VOLUME /repos

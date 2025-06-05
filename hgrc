@@ -13,3 +13,10 @@ publish = true
 
 [server]
 validate = true
+
+[extensions]
+pushlog = /version-control-tools/hgext/pushlog
+
+[pushlog]
+# Only for suite
+autolanduser = app
