@@ -40,6 +40,7 @@ REPOS = [
     "first-repo",
     "second-repo",
     "third-repo",
+    "try",
 ]
 
 # Create a config template for the `hg serve` command.
